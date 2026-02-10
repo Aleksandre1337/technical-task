@@ -27,9 +27,3 @@ variable "availability_zone" {
   description = "Availability zone for subnets"
   type        = string
 }
-
-variable "common_tags" {
-  description = "Common tags to apply to all resources"
-  type        = map(string)
-  default     = {}
-}
