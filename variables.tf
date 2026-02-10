@@ -11,9 +11,15 @@ variable "environment" {
 variable "vpcs" {
   description = "Map of VPC configurations"
   type = map(object({
-    vpc_cidr             = string
-    public_subnet_cidr   = string
-    private_subnet_cidr  = string
-    availability_zone    = string
+    vpc_cidr = string
+    public_subnets = list(object({
+      cidr_block        = string
+      availability_zone = string
+    }))
+    private_subnets = list(object({
+      cidr_block        = string
+      availability_zone = string
+    }))
+    nat_gateway_mode = optional(string, "regional") # disabled, zonal, or regional
   }))
 }

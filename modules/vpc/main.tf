@@ -4,82 +4,87 @@ resource "aws_vpc" "main" {
   enable_dns_hostnames = true
   enable_dns_support   = true
 
-  tags = merge(
-    var.common_tags,
-    {
-      Name = "${var.project_name}-vpc"
-    }
-  )
+  tags = {
+    Name = "${var.project_name}-vpc"
+  }
 }
 
 # Internet Gateway
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
 
-  tags = merge(
-    var.common_tags,
-    {
-      Name = "${var.project_name}-igw"
-    }
-  )
+  tags = {
+    Name = "${var.project_name}-igw"
+  }
 }
 
-# Public Subnet
+# Public Subnets
 resource "aws_subnet" "public" {
+  for_each = { for idx, subnet in var.public_subnets : idx => subnet }
+
   vpc_id                  = aws_vpc.main.id
-  cidr_block              = var.public_subnet_cidr
-  availability_zone       = var.availability_zone
+  cidr_block              = each.value.cidr_block
+  availability_zone       = each.value.availability_zone
   map_public_ip_on_launch = true
 
-  tags = merge(
-    var.common_tags,
-    {
-      Name = "${var.project_name}-public-subnet"
-      Type = "Public"
-    }
-  )
+  tags = {
+    Name = "${var.project_name}-public-subnet-${each.key}"
+    Type = "Public"
+  }
 }
 
-# Private Subnet
+# Private Subnets
 resource "aws_subnet" "private" {
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = var.private_subnet_cidr
-  availability_zone = var.availability_zone
+  for_each = { for idx, subnet in var.private_subnets : idx => subnet }
 
-  tags = merge(
-    var.common_tags,
-    {
-      Name = "${var.project_name}-private-subnet"
-      Type = "Private"
-    }
-  )
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = each.value.cidr_block
+  availability_zone = each.value.availability_zone
+
+  tags = {
+    Name = "${var.project_name}-private-subnet-${each.key}"
+    Type = "Private"
+  }
 }
 
-# Elastic IP for NAT Gateway
+# Elastic IP for zonal NAT Gateway mode
 resource "aws_eip" "nat" {
+  count = var.nat_gateway_mode == "zonal" ? 1 : 0
+
   domain = "vpc"
 
-  tags = merge(
-    var.common_tags,
-    {
-      Name = "${var.project_name}-nat-eip"
-    }
-  )
+  tags = {
+    Name = "${var.project_name}-nat-eip"
+  }
 
   depends_on = [aws_internet_gateway.main]
 }
 
-# NAT Gateway
-resource "aws_nat_gateway" "main" {
-  allocation_id = aws_eip.nat.id
-  subnet_id     = aws_subnet.public.id
+# NAT Gateway - Zonal Mode (single NAT, cost-optimized)
+resource "aws_nat_gateway" "zonal" {
+  count = var.nat_gateway_mode == "zonal" ? 1 : 0
 
-  tags = merge(
-    var.common_tags,
-    {
-      Name = "${var.project_name}-nat-gateway"
-    }
-  )
+  allocation_id = aws_eip.nat[0].id
+  subnet_id     = aws_subnet.public[0].id
+
+  tags = {
+    Name = "${var.project_name}-nat-gateway-zonal"
+  }
+
+  depends_on = [aws_internet_gateway.main]
+}
+
+# NAT Gateway - Regional Mode (AWS-managed HA)
+resource "aws_nat_gateway" "regional" {
+  count = var.nat_gateway_mode == "regional" ? 1 : 0
+
+  vpc_id            = aws_vpc.main.id
+  connectivity_type = "public"
+  availability_mode = "regional"
+
+  tags = {
+    Name = "${var.project_name}-nat-gateway-regional"
+  }
 
   depends_on = [aws_internet_gateway.main]
 }
@@ -88,13 +93,10 @@ resource "aws_nat_gateway" "main" {
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
 
-  tags = merge(
-    var.common_tags,
-    {
-      Name = "${var.project_name}-public-rt"
-      Type = "Public"
-    }
-  )
+  tags = {
+    Name = "${var.project_name}-public-rt"
+    Type = "Public"
+  }
 }
 
 # Public Route to Internet Gateway
@@ -104,9 +106,11 @@ resource "aws_route" "public_internet_gateway" {
   gateway_id             = aws_internet_gateway.main.id
 }
 
-# Public Subnet Route Table Association
+# Public Subnet Route Table Associations
 resource "aws_route_table_association" "public" {
-  subnet_id      = aws_subnet.public.id
+  for_each = aws_subnet.public
+
+  subnet_id      = each.value.id
   route_table_id = aws_route_table.public.id
 }
 
@@ -114,24 +118,34 @@ resource "aws_route_table_association" "public" {
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.main.id
 
-  tags = merge(
-    var.common_tags,
-    {
-      Name = "${var.project_name}-private-rt"
-      Type = "Private"
-    }
-  )
+  tags = {
+    Name = "${var.project_name}-private-rt"
+    Type = "Private"
+  }
 }
 
-# Private Route to NAT Gateway
-resource "aws_route" "private_nat_gateway" {
+# Private Route to NAT Gateway - Zonal Mode
+resource "aws_route" "private_nat_zonal" {
+  count = var.nat_gateway_mode == "zonal" ? 1 : 0
+
   route_table_id         = aws_route_table.private.id
   destination_cidr_block = "0.0.0.0/0"
-  nat_gateway_id         = aws_nat_gateway.main.id
+  nat_gateway_id         = aws_nat_gateway.zonal[0].id
 }
 
-# Private Subnet Route Table Association
+# Private Route to NAT Gateway - Regional Mode
+resource "aws_route" "private_nat_regional" {
+  count = var.nat_gateway_mode == "regional" ? 1 : 0
+
+  route_table_id         = aws_route_table.private.id
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = aws_nat_gateway.regional[0].id
+}
+
+# Private Subnet Route Table Associations
 resource "aws_route_table_association" "private" {
-  subnet_id      = aws_subnet.private.id
+  for_each = aws_subnet.private
+
+  subnet_id      = each.value.id
   route_table_id = aws_route_table.private.id
 }

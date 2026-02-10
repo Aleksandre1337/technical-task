@@ -13,23 +13,29 @@ variable "vpc_cidr" {
   type        = string
 }
 
-variable "public_subnet_cidr" {
-  description = "CIDR block for public subnet"
-  type        = string
+variable "public_subnets" {
+  description = "List of public subnet configurations"
+  type = list(object({
+    cidr_block        = string
+    availability_zone = string
+  }))
 }
 
-variable "private_subnet_cidr" {
-  description = "CIDR block for private subnet"
-  type        = string
+variable "private_subnets" {
+  description = "List of private subnet configurations"
+  type = list(object({
+    cidr_block        = string
+    availability_zone = string
+  }))
 }
 
-variable "availability_zone" {
-  description = "Availability zone for subnets"
+variable "nat_gateway_mode" {
+  description = "NAT Gateway deployment mode: 'disabled' (no internet), 'zonal' (single NAT, cost-optimized), or 'regional' (AWS-managed HA)"
   type        = string
-}
+  default     = "regional"
 
-variable "common_tags" {
-  description = "Common tags to apply to all resources"
-  type        = map(string)
-  default     = {}
+  validation {
+    condition     = contains(["disabled", "zonal", "regional"], var.nat_gateway_mode)
+    error_message = "nat_gateway_mode must be 'disabled', 'zonal', or 'regional'"
+  }
 }
