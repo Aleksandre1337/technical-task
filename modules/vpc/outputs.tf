@@ -33,9 +33,16 @@ output "internet_gateway_id" {
   value       = aws_internet_gateway.main.id
 }
 
-output "nat_gateway_id" {
-  description = "The ID of the NAT Gateway"
-  value       = aws_nat_gateway.main.id
+output "nat_gateway_ids" {
+  description = "List of NAT Gateway IDs"
+  value = var.nat_gateway_mode == "zonal" ? [aws_nat_gateway.zonal[0].id] : (
+    var.nat_gateway_mode == "regional" ? [aws_nat_gateway.regional[0].id] : []
+  )
+}
+
+output "nat_gateway_mode" {
+  description = "NAT Gateway deployment mode"
+  value       = var.nat_gateway_mode
 }
 
 output "public_route_table_id" {
@@ -43,7 +50,7 @@ output "public_route_table_id" {
   value       = aws_route_table.public.id
 }
 
-output "private_route_table_id" {
-  description = "The ID of the private route table"
-  value       = aws_route_table.private.id
+output "private_route_table_ids" {
+  description = "List of private route table IDs"
+  value       = [aws_route_table.private.id]
 }

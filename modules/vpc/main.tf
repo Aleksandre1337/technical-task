@@ -47,8 +47,10 @@ resource "aws_subnet" "private" {
   }
 }
 
-# Elastic IP for NAT Gateway
+# Elastic IP for zonal NAT Gateway mode
 resource "aws_eip" "nat" {
+  count = var.nat_gateway_mode == "zonal" ? 1 : 0
+
   domain = "vpc"
 
   tags = {
@@ -58,13 +60,30 @@ resource "aws_eip" "nat" {
   depends_on = [aws_internet_gateway.main]
 }
 
-# NAT Gateway (placed in first public subnet)
-resource "aws_nat_gateway" "main" {
-  allocation_id = aws_eip.nat.id
+# NAT Gateway - Zonal Mode (single NAT, cost-optimized)
+resource "aws_nat_gateway" "zonal" {
+  count = var.nat_gateway_mode == "zonal" ? 1 : 0
+
+  allocation_id = aws_eip.nat[0].id
   subnet_id     = aws_subnet.public[0].id
 
   tags = {
-    Name = "${var.project_name}-nat-gateway"
+    Name = "${var.project_name}-nat-gateway-zonal"
+  }
+
+  depends_on = [aws_internet_gateway.main]
+}
+
+# NAT Gateway - Regional Mode (AWS-managed HA)
+resource "aws_nat_gateway" "regional" {
+  count = var.nat_gateway_mode == "regional" ? 1 : 0
+
+  vpc_id            = aws_vpc.main.id
+  connectivity_type = "public"
+  availability_mode = "regional"
+
+  tags = {
+    Name = "${var.project_name}-nat-gateway-regional"
   }
 
   depends_on = [aws_internet_gateway.main]
@@ -105,11 +124,22 @@ resource "aws_route_table" "private" {
   }
 }
 
-# Private Route to NAT Gateway
-resource "aws_route" "private_nat_gateway" {
+# Private Route to NAT Gateway - Zonal Mode
+resource "aws_route" "private_nat_zonal" {
+  count = var.nat_gateway_mode == "zonal" ? 1 : 0
+
   route_table_id         = aws_route_table.private.id
   destination_cidr_block = "0.0.0.0/0"
-  nat_gateway_id         = aws_nat_gateway.main.id
+  nat_gateway_id         = aws_nat_gateway.zonal[0].id
+}
+
+# Private Route to NAT Gateway - Regional Mode
+resource "aws_route" "private_nat_regional" {
+  count = var.nat_gateway_mode == "regional" ? 1 : 0
+
+  route_table_id         = aws_route_table.private.id
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = aws_nat_gateway.regional[0].id
 }
 
 # Private Subnet Route Table Associations

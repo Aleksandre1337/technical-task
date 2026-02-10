@@ -28,3 +28,14 @@ variable "private_subnets" {
     availability_zone = string
   }))
 }
+
+variable "nat_gateway_mode" {
+  description = "NAT Gateway deployment mode: 'disabled' (no internet), 'zonal' (single NAT, cost-optimized), or 'regional' (AWS-managed HA)"
+  type        = string
+  default     = "regional"
+
+  validation {
+    condition     = contains(["disabled", "zonal", "regional"], var.nat_gateway_mode)
+    error_message = "nat_gateway_mode must be 'disabled', 'zonal', or 'regional'"
+  }
+}

@@ -20,5 +20,6 @@ variable "vpcs" {
       cidr_block        = string
       availability_zone = string
     }))
+    nat_gateway_mode = optional(string, "regional") # disabled, zonal, or regional
   }))
 }
