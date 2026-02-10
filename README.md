@@ -52,13 +52,20 @@ vpcs = {
 
 ```
 .
+├── .gitignore        # Git ignore patterns
+├── .terraform.lock.hcl  # Terraform dependency lock file
+├── locals.tf         # Local values and variables
 ├── main.tf           # Root module configuration
 ├── variables.tf      # Input variables
 ├── outputs.tf        # Output values
 ├── providers.tf      # Provider and backend configuration
 ├── terraform.tfvars  # Variable values
+├── README.md         # This file
 └── modules/
     └── vpc/          # Reusable VPC module
+        ├── main.tf
+        ├── outputs.tf
+        └── variables.tf
 ```
 
 ## 🔐 Backend Configuration

@@ -4,20 +4,24 @@ resource "aws_vpc" "main" {
   enable_dns_hostnames = true
   enable_dns_support   = true
 
-  tags = {
-    Name        = "${var.project_name}-vpc"
-    Environment = var.environment
-  }
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-vpc"
+    }
+  )
 }
 
 # Internet Gateway
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
 
-  tags = {
-    Name        = "${var.project_name}-igw"
-    Environment = var.environment
-  }
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-igw"
+    }
+  )
 }
 
 # Public Subnet
@@ -27,11 +31,13 @@ resource "aws_subnet" "public" {
   availability_zone       = var.availability_zone
   map_public_ip_on_launch = true
 
-  tags = {
-    Name        = "${var.project_name}-public-subnet"
-    Environment = var.environment
-    Type        = "Public"
-  }
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-public-subnet"
+      Type = "Public"
+    }
+  )
 }
 
 # Private Subnet
@@ -40,21 +46,25 @@ resource "aws_subnet" "private" {
   cidr_block        = var.private_subnet_cidr
   availability_zone = var.availability_zone
 
-  tags = {
-    Name        = "${var.project_name}-private-subnet"
-    Environment = var.environment
-    Type        = "Private"
-  }
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-private-subnet"
+      Type = "Private"
+    }
+  )
 }
 
 # Elastic IP for NAT Gateway
 resource "aws_eip" "nat" {
   domain = "vpc"
 
-  tags = {
-    Name        = "${var.project_name}-nat-eip"
-    Environment = var.environment
-  }
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-nat-eip"
+    }
+  )
 
   depends_on = [aws_internet_gateway.main]
 }
@@ -64,10 +74,12 @@ resource "aws_nat_gateway" "main" {
   allocation_id = aws_eip.nat.id
   subnet_id     = aws_subnet.public.id
 
-  tags = {
-    Name        = "${var.project_name}-nat-gateway"
-    Environment = var.environment
-  }
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-nat-gateway"
+    }
+  )
 
   depends_on = [aws_internet_gateway.main]
 }
@@ -76,11 +88,13 @@ resource "aws_nat_gateway" "main" {
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
 
-  tags = {
-    Name        = "${var.project_name}-public-rt"
-    Environment = var.environment
-    Type        = "Public"
-  }
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-public-rt"
+      Type = "Public"
+    }
+  )
 }
 
 # Public Route to Internet Gateway
@@ -100,11 +114,13 @@ resource "aws_route_table_association" "public" {
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.main.id
 
-  tags = {
-    Name        = "${var.project_name}-private-rt"
-    Environment = var.environment
-    Type        = "Private"
-  }
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "${var.project_name}-private-rt"
+      Type = "Private"
+    }
+  )
 }
 
 # Private Route to NAT Gateway
