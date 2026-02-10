@@ -53,7 +53,6 @@ vpcs = {
 ```
 .
 ├── .gitignore        # Git ignore patterns
-├── .terraform.lock.hcl  # Terraform dependency lock file
 ├── locals.tf         # Local values and variables
 ├── main.tf           # Root module configuration
 ├── variables.tf      # Input variables
